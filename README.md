@@ -10,7 +10,7 @@ Python-клиент для взаимодействия с тестовым REST
 
 ## Быстрый старт
 ```python
-from client import JSONPlaceholderClient
+from app import JSONPlaceholderClient
 client = JSONPlaceholderClient()
 
 # Получить пост
@@ -22,6 +22,8 @@ new_post = client.create_post(
     body="Текст поста",
     user_id=1
 )
+```
+
 Формат ответов
 Все методы возвращают словари Python или списки словарей, соответствующие структуре JSONPlaceholder.
 
