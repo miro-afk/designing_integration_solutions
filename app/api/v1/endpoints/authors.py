@@ -20,6 +20,7 @@ async def read_authors(
     skip: int = Query(0, ge=0),
     limit: int = Query(100, ge=1, le=100),
     name: Optional[str] = None,
+    fields: Optional[str] = Query(None, description="Поля для включения в ответ (через запятую)"),
     db: Session = Depends(get_db),
     api_key: str = Depends(verify_api_key)
 ):
@@ -29,8 +30,10 @@ async def read_authors(
     authors, total = crud.get_authors(db, skip=skip, limit=limit, name=name)
     result = []
     for author in authors:
-        author = utils.author_to_pydantic(author)
-        result+=author
+        author_data = utils.sqlalchemy_to_dict(author)
+        if fields:
+            author_data = schemas.FieldSelector.filter_response(author_data, fields)
+        result.append(author_data)
     response = {
         "items": result,
         "total": total,
@@ -48,6 +51,7 @@ async def read_author(
     request: Request,
     response: Response,
     author_id: int,
+    fields: Optional[str] = Query(None, description="Поля для включения в ответ (через запятую)"),
     db: Session = Depends(get_db),
     api_key: str = Depends(verify_api_key)
 ):
@@ -58,8 +62,10 @@ async def read_author(
     if db_author is None:
         raise HTTPException(status_code=404, detail="Author not found")
     
-    db_author.books_count = len(db_author.books)
-    return utils.sqlalchemy_to_dict(db_author)
+    author_data = utils.sqlalchemy_to_dict(db_author)
+    if fields:
+        author_data = schemas.FieldSelector.filter_response(author_data, fields)
+    return author_data
 
 @router.post("/", response_model=schemas.AuthorV1, status_code=status.HTTP_201_CREATED)
 @limiter.limit("30/minute")

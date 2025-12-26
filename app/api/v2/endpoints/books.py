@@ -22,6 +22,7 @@ async def read_books(
     title: Optional[str] = None,
     author_id: Optional[int] = None,
     is_available: Optional[bool] = None,  # Новая возможность в v2
+    fields: Optional[str] = Query(None, description="Поля для включения в ответ (через запятую)"),
     db: Session = Depends(get_db),
     api_key: str = Depends(verify_api_key)
 ):
@@ -37,8 +38,12 @@ async def read_books(
     )
     result = []
     for book in books:
-        book = utils.book_to_pydantic_v2(book)
-        result+=book
+        book_data = utils.sqlalchemy_to_dict(book)
+        if hasattr(book, 'author') and book.author:
+            book_data['author'] = utils.sqlalchemy_to_dict(book.author)
+        if fields:
+            book_data = schemas.FieldSelector.filter_response(book_data, fields)
+        result.append(book_data)
     response = {
         "items": result,
         "total": total,
@@ -57,6 +62,7 @@ async def read_book(
     request: Request,
     response: Response,
     book_id: int,
+    fields: Optional[str] = Query(None, description="Поля для включения в ответ (через запятую)"),
     db: Session = Depends(get_db),
     api_key: str = Depends(verify_api_key)
 ):
@@ -68,7 +74,12 @@ async def read_book(
     db_book = crud.get_book(db, book_id=book_id)
     if db_book is None:
         raise HTTPException(status_code=404, detail="Book not found")
-    return utils.sqlalchemy_to_dict(db_book)
+    book_data = utils.sqlalchemy_to_dict(db_book)
+    book_data['author'] = utils.sqlalchemy_to_dict(db_book.author)
+    if fields:
+        book_data = schemas.FieldSelector.filter_response(book_data, fields)
+
+    return book_data
 
 @router.post("/", response_model=schemas.BookV2, status_code=status.HTTP_201_CREATED)
 @limiter.limit("30/minute")

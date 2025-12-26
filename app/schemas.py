@@ -94,3 +94,42 @@ class PaginatedResponse(BaseModel):
     page: int
     size: int
     pages: int
+
+class FieldSelector:
+    @staticmethod
+    def filter_response(data: dict, fields: str = None) -> dict:
+        """
+        Фильтрует ответ, оставляя только указанные поля
+        
+        Args:
+            data: Словарь с данными
+            fields: Строка с перечислением полей через запятую (например: "id,name,title")
+        
+        Returns:
+            Отфильтрованный словарь
+        """
+        if not fields:
+            return data
+        
+        # Разбиваем строку на отдельные поля
+        requested_fields = [field.strip() for field in fields.split(',')]
+        result = {}
+        
+        for field in requested_fields:
+            if field in data:
+                result[field] = data[field]
+            # Поддержка вложенных полей (например: "author.name")
+            elif '.' in field:
+                parent_field, child_field = field.split('.', 1)
+                if parent_field in data and isinstance(data[parent_field], dict):
+                    if child_field in data[parent_field]:
+                        if parent_field not in result:
+                            result[parent_field] = {}
+                        result[parent_field][child_field] = data[parent_field][child_field]
+        
+        return result
+
+# Обновленная схема ответа с поддержкой опциональных полей
+class FieldResponse(BaseModel):
+    data: dict
+    requested_fields: List[str] = []

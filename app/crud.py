@@ -53,7 +53,7 @@ def create_author(db: Session, author: schemas.AuthorCreateV1) -> schemas.Author
     db.commit()
     db.refresh(db_author)
     
-    return author_to_pydantic(db_author)
+    return db_author
 
 def update_author(
     db: Session, 

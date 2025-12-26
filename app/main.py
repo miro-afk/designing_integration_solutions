@@ -11,6 +11,7 @@ from app.rate_limiter import limiter
 from app.database import engine, Base
 from app.api.v1.api_v1 import api_router as api_router_v1
 from app.api.v2.api_v2 import api_router as api_router_v2
+from app.api import internal_api
 
 
 
@@ -47,6 +48,7 @@ app.add_middleware(
 # Подключаем версии API
 app.include_router(api_router_v1, prefix="/api/v1")
 app.include_router(api_router_v2, prefix="/api/v2")
+app.include_router(internal_api.router, prefix="/internal")
 
 @app.get("/")
 async def root():

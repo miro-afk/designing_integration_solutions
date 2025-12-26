@@ -1,5 +1,5 @@
 from fastapi import APIRouter
-from app.api.v2.endpoints import authors, books
+from app.api.v2.endpoints import books
 
 api_router = APIRouter()
 

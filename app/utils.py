@@ -11,94 +11,31 @@ def sqlalchemy_to_dict(model_instance, exclude: List[str] = None) -> dict:
     exclude = exclude or []
     result = {}
     
-    # Получаем все атрибуты
-    for key in dir(model_instance):
-        # Пропускаем служебные атрибуты
-        if key.startswith('_') or key in ['metadata', 'query', 'query_class']:
+    # Получаем все атрибуты модели
+    for key, value in model_instance.__dict__.items():
+        # Пропускаем служебные атрибуты SQLAlchemy
+        if key.startswith('_'):
             continue
             
-        value = getattr(model_instance, key)
+        # Пропускаем исключенные поля
+        if key in exclude:
+            continue
         
-        # Пропускаем методы и то, что в исключениях
-        if callable(value) or key in exclude:
-            continue
-            
         result[key] = value
     
     return result
 
-def author_to_pydantic(db_author: models.Author) -> schemas.AuthorV1:
-    """
-    Преобразует SQLAlchemy Author в Pydantic AuthorV1
-    """
-    if not db_author:
-        return None
-    
-    author_data = {
-        "id": db_author.id,
-        "name": db_author.name,
-        "bio": db_author.bio,
-        "birth_date": db_author.birth_date,
-        "nationality": db_author.nationality,
-        "created_at": db_author.created_at,
-        "updated_at": db_author.updated_at,
-        "books_count": len(db_author.books) if hasattr(db_author, 'books') else 0
-    }
-    
-    return schemas.AuthorV1(**author_data)
 
-def book_to_pydantic_v1(db_book: models.Book) -> schemas.BookV1:
+def filter_model_fields(model_instance, fields: str = None) -> dict:
     """
-    Преобразует SQLAlchemy Book в Pydantic BookV1
+    Фильтрует поля модели на основе запроса
     """
-    if not db_book:
-        return None
+    if not model_instance:
+        return {}
+        
+    if not fields:
+        return model_instance
     
-    book_data = {
-        "id": db_book.id,
-        "title": db_book.title,
-        "isbn": db_book.isbn,
-        "description": db_book.description,
-        "year_published": db_book.year_published,
-        "publisher": db_book.publisher,
-        "pages": db_book.pages,
-        "language": db_book.language,
-        "created_at": db_book.created_at,
-        "updated_at": db_book.updated_at,
-        "author_id": db_book.author_id,
-        "is_available": db_book.is_available
-    }
-    
-    # Добавляем автора, если он загружен
-    if db_book.author and hasattr(db_book, 'author'):
-        book_data["author"] = author_to_pydantic(db_book.author)
-    
-    return schemas.BookV1(**book_data)
-
-def book_to_pydantic_v2(db_book: models.Book) -> schemas.BookV2:
-    """
-    Преобразует SQLAlchemy Book в Pydantic BookV2
-    """
-    if not db_book:
-        return None
-    
-    book_data = {
-        "id": db_book.id,
-        "title": db_book.title,
-        "isbn": db_book.isbn,
-        "description": db_book.description,
-        "year_published": db_book.year_published,
-        "publisher": db_book.publisher,
-        "pages": db_book.pages,
-        "language": db_book.language,
-        "created_at": db_book.created_at,
-        "updated_at": db_book.updated_at,
-        "author_id": db_book.author_id,
-        "is_available": db_book.is_available
-    }
-    
-    # Добавляем автора, если он загружен
-    if db_book.author and hasattr(db_book, 'author'):
-        book_data["author"] = author_to_pydantic(db_book.author)
-    
-    return schemas.BookV2(**book_data)
+    # Применяем фильтр
+    selector = schemas.FieldSelector()
+    return selector.filter_response(model_instance, fields)

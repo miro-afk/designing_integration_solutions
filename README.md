@@ -114,3 +114,60 @@ DELETE запросы: 30 запросов в минуту
   ... все поля из v1 ...  
   "is_available": true  # Новое поле в v2  
 }  
+
+Краткое описание нововведений:
+Исправлена функция sqlalchemy_to_dict - теперь корректно извлекает значения полей из SQLAlchemy моделей
+
+Исправлена логика добавления в списки - используется .append() вместо += для добавления словарей в список
+
+Добавлена поддержка опциональных полей через параметр fields в query string
+
+Примеры использования опциональных полей:
+Теперь можно делать такие запросы:
+
+Для авторов:
+
+Только ID и имена  
+GET /api/v1/authors/?fields=id,name
+
+Только имена  
+GET /api/v1/authors/?fields=name
+
+ID, имя и национальность  
+GET /api/v1/authors/?fields=id,name,nationality
+
+С автором книги (вложенные поля)  
+GET /api/v1/books/?fields=id,title,author.name  
+Для книг:
+
+Основная информация  
+GET /api/v1/books/?fields=id,title,isbn
+
+С доступностью (v2)  
+GET /api/v2/books/?fields=id,title,is_available
+
+С автором  
+GET /api/v1/books/?fields=id,title,author.name,author.nationality  
+Внутреннее API:
+Также добавлено внутреннее API для мониторинга с простой аутентификацией:
+
+bash
+Подробная проверка здоровья
+GET /internal/health/detailed?token=internal-secret-token  
+
+Метрики использования
+GET /internal/metrics/usage?token=internal-secret-token  
+
+Сервисные операции
+POST /internal/maintenance/cleanup?token=internal-secret-token&days_old=30  
+
+Преимущества реализации:
+Гибкость API - клиенты получают только нужные данные
+
+Экономия трафика - уменьшение размера ответов
+
+Улучшение производительности - меньше данных для сериализации
+
+Внутренний мониторинг - инструменты для обслуживания системы
+
+Совместимость - обратная совместимость сохраняется
