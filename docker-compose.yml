@@ -12,7 +12,12 @@ services:
       - "5432:5432"
     volumes:
       - postgres_data:/var/lib/postgresql/data
-
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U postgres"]
+      interval: 10s
+      timeout: 5s
+      retries: 10
+      start_period: 30s
 
   redis:
     image: redis:7-alpine
@@ -21,21 +26,81 @@ services:
       - "6379:6379"
     volumes:
       - redis_data:/data
-   
-  app:
-    build: .
-    container_name: library_api
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 10s
+      timeout: 5s
+      retries: 10
+      start_period: 20s
+
+  rabbitmq:
+    image: rabbitmq:3.12-management-alpine
+    container_name: library_rabbitmq
     ports:
-      - "8000:8000"
+      - "5672:5672"   # AMQP порт
+      - "15672:15672" # Management UI порт
+    environment:
+      RABBITMQ_DEFAULT_USER: admin
+      RABBITMQ_DEFAULT_PASS: admin123
+      RABBITMQ_SERVER_START_ARGS: ""
+      RABBITMQ_SERVER_ADDITIONAL_ERL_ARGS: "-rabbit frame_max 1048576"
+    volumes:
+      - rabbitmq_data:/var/lib/rabbitmq
+    healthcheck:
+      test: ["CMD", "rabbitmq-diagnostics", "ping"]
+      interval: 10s
+      timeout: 10s
+      retries: 20
+      start_period: 60s
+
+  api_server:
+    build: .
+    container_name: library_api_server
     environment:
       - DB_HOST=postgres
       - REDIS_HOST=redis
+      - RABBITMQ_HOST=rabbitmq
+      - RABBITMQ_USERNAME=admin
+      - RABBITMQ_PASSWORD=admin123
     depends_on:
-      - postgres
-      - redis
+      postgres:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+      rabbitmq:
+        condition: service_healthy
     volumes:
       - .:/app
-   
+    command: >
+      bash -c "
+      echo 'Waiting for RabbitMQ to be fully ready...' &&
+      sleep 5 &&
+      python -m app.server
+      "
+ 
+
+  api_client:
+    build: .
+    container_name: library_api_client
+    environment:
+      - RABBITMQ_HOST=rabbitmq
+      - RABBITMQ_USERNAME=admin
+      - RABBITMQ_PASSWORD=admin123
+    depends_on:
+      api_server:
+        condition: service_started
+    volumes:
+      - .:/app
+    stdin_open: true
+    tty: true
+    command: >
+      bash -c "
+      echo 'Waiting for API server to be ready...' &&
+      sleep 10 &&
+      python -m app.client
+      "
+
 volumes:
   postgres_data:
   redis_data:
+  rabbitmq_data:
